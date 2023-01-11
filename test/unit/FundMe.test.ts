@@ -1,10 +1,13 @@
+import { KeystoreAccount } from "@ethersproject/json-wallets/lib/keystore"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { assert, expect } from "chai"
 import { network, deployments, ethers } from "hardhat"
 import { developmentChains } from "../../helper-hardhat-config"
 import { FundMe, MockV3Aggregator } from "../../typechain-types"
 
-describe("FundMe", function () {
+!developmentChains.includes(network.name)
+    ? describe.skip:
+    describe("FundMe", function () {
   let fundMe: FundMe
   let mockV3Aggregator: MockV3Aggregator
   let deployer: SignerWithAddress
@@ -47,8 +50,16 @@ describe("FundMe", function () {
       assert.equal(response, deployer.address)
     })
   })
-  describe("withdraw", function() {
+  describe("withdraw", async function() {
     beforeEach(async () => {
+      // const startingFundMeBalance = await ethers.provider.getBalance(
+      //   fundMe.address
+      // )
+      // const startingDeployerBalance = await ethers.provider.getBalance(
+      //   deployer.address
+      // )
+      // console.log('Before each startingFundMeBalance',startingFundMeBalance.toString())
+      // console.log('Before each startingDeployerBalance',startingDeployerBalance.toString())
       await fundMe.fund({ value: ethers.utils.parseEther("1") })
     })
     it("gives a single funder all their ETH back", async () => {
@@ -59,6 +70,8 @@ describe("FundMe", function () {
       const startingDeployerBalance = await fundMe.provider.getBalance(
         deployer.address
       )
+      console.log('startingFundMeBalance',startingFundMeBalance.toString())
+      console.log('startingDeployerBalance',startingDeployerBalance.toString())
 
       // Act
       const transactionResponse = await fundMe.withdraw()
@@ -72,7 +85,13 @@ describe("FundMe", function () {
       const endingDeployerBalance = await fundMe.provider.getBalance(
         deployer.address
       )
+      
 
+      // 9999996949360188146801
+      // 0001000000000000000000
+
+      console.log('endingFundMeBalance',endingFundMeBalance.toString())
+      console.log('endingDeployerBalance',endingDeployerBalance.toString())
       // Assert
       assert.equal(endingFundMeBalance.toString(), "0")
       assert.equal(
@@ -148,6 +167,16 @@ describe("FundMe", function () {
         (await fundMe.s_addressToAmountFunded(accounts[5].address)).toString(),
         "0"
       )
+    })
+
+
+    it("dont give fund to not owner", async () => {
+      
+      const getAccounts:SignerWithAddress[] = await ethers.getSigners()
+      const attacker = getAccounts[1]
+      const fundMeConnectedContract = fundMe.connect(attacker)
+      await expect(fundMeConnectedContract.withdraw()).to.be.revertedWith('FundMe__NotOwner')
+      
     })
   })
 })
